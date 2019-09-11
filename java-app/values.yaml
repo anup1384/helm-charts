@@ -29,14 +29,12 @@ service:
 
 configvalues: {
   DATABASE_SERVER_NAME: "mysql",
-  DATABASE_USER_NAME: "myapp",
-  DATABASE_USER_PASSWORD: "myapp_pwd",
   JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,address=*:5005,server=y,suspend=n -Xms256m -Xmx512m -XX:MaxMetaspaceSize=128m"
 }
 
 secrets: {
-  DATABASE_USER_NAME: "bXlhcHA=",
-  DATABASE_USER_PASSWORD: "bXlhcHBfcHdk"
+  DATABASE_USER_NAME: "bXlhcHA=", #myapp
+  DATABASE_USER_PASSWORD: "bXlhcHBfcHdk" #myapp_pwd
 }
 
 resources:
