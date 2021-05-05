@@ -1,4 +1,4 @@
-This repository hosts OpenDevopsAutomation [Helm](https://helm.sh) charts.
+This repository hosts [Helm](https://helm.sh) charts.
 
 ## Add Helm repository
 
