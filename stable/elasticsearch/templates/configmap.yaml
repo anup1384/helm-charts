@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "elasticsearch.full_name" . }}
+  namespace: {{ .Values.namespace }}
+data:
+  es-java-opts: {{ .Values.esJavaOpts }}
+  cluster-name: {{ .Values.clusterName }}
+  min-master-nodes: {{ .Values.minMasterNodes | quote }}

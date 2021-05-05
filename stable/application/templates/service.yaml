@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+{{- if .Values.service.annotations }}
+  annotations:
+  {{- range $key, $value := .Values.service.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
+  name: {{ include "application.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "application.labels" . | indent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+{{- if eq .Values.service.type "LoadBalancer" }}
+  loadBalancerSourceRanges:
+{{ toYaml .Values.service.loadBalancerSourceRanges | indent 4 }}
+{{- end }}
+  ports:
+    {{- $setNodePorts := (or (eq .Values.service.type "NodePort") (eq .Values.service.type "LoadBalancer")) }}
+    {{- if .Values.service.enableHttp }}
+    - name: http
+      port: {{ .Values.service.ports.http }}
+      protocol: TCP
+      targetPort: {{ .Values.image.port }}
+      {{- if (and $setNodePorts (not (empty .Values.service.nodePorts.http))) }}
+      nodePort: {{ .Values.controller.service.nodePorts.http }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.service.enableHttps }}
+    - name: https
+      port: {{ .Values.service.ports.https }}
+      protocol: TCP
+      targetPort: {{ .Values.image.port }}
+      {{- if (and $setNodePorts (not (empty .Values.service.nodePorts.https))) }}
+      nodePort: {{ .Values.service.nodePorts.https }}
+      {{- end }}
+    {{- end }}
+  selector:
+    app.kubernetes.io/name: {{ include "application.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}

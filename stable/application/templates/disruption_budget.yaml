@@ -1,0 +1,11 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "application.name" . }}
+  namespace: {{ .Values.namespace }}
+spec:
+  minAvailable: {{ .Values.disruption.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "application.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}

@@ -1,0 +1,40 @@
+# Statefulset metadata & spec
+appName: ha-elasticsearch
+namespace: logging
+imageRepository: docker.elastic.co/elasticsearch/elasticsearch-oss
+imageTag: 7.3.0
+#imageTag: 7.0.1
+imagePullPolicy: Always
+replicas: 3
+updateStrategy: RollingUpdate
+cpuLimit: 1000m
+cpuRequest: 500m
+memoryLimit: "2500M"
+memoryRequest: "2300M"
+readinessProbeInitialDelaySeconds: 30
+readinessProbePeriodSeconds: 10
+livenessProbeInitialDelaySeconds: 30
+livenessProbePeriodSeconds: 10
+
+# Service spec
+httpRestPort: 9200
+transportPort: 9300
+serviceType: ClusterIP
+
+# Elasticsearch options
+esJavaOpts: "-Xms2000m -Xmx2000m"
+clusterName: ha-elasticsearch-cluster
+nodePrefix: "ha-elasticsearch"
+minMasterNodes: 2
+vmMaxMapCount: 262144
+fileDescriptorLimit: 65535
+
+# Persistency
+volumeName: ha-elasticsearch-volume
+storageClass: gp2
+accessMode: ReadWriteOnce
+storageResourceRequest: 20Gi
+
+# Pod Disruption Budget
+maxUnavailable: 1
+pdbName: ha-elasticsearch-pdb

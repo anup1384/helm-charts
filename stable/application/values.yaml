@@ -1,0 +1,169 @@
+# Default values for Application.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+namespace: "default"  #namespace for application
+replicaCount: 1   #Number of pod counts
+maxUnavailable: 0
+maxSurge: 50%
+terminationGracePeriodSeconds: 60
+
+
+image:
+  repository: 123456789.dkr.ecr.ap-south-1.amazonaws.com/test   # Image for running container
+  tag: v3                 # Image tag version
+  pullPolicy: Always      # Image pull policy
+  port: 8000              # Application port number
+  health_url: /           # Health check URL of Application 
+
+## startup probes for containers "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+
+# Enable livenessProbe true to check if the container is started and alive for health_url
+livenessProbe:
+  enabled: false
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+# Enable readinessProbe true to Indicates whether the Container is ready to service requests  for health_url 
+
+readinessProbe:
+  enabled: false
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+#imagePullSecrets: ap-south-1-ecr-registry
+
+# Name for application
+nameOverride: "test"
+fullnameOverride: "test"
+
+
+# To expose an application running on a set of Pods as a network service "https://kubernetes.io/docs/concepts/services-networking/service/"
+service:
+  type: ClusterIP
+  enableHttp: true
+  enableHttps: false
+  ports:
+    http: 80
+    https: 443
+  nodePorts:
+    http: ""
+    https: ""
+  #port: 80
+  annotations: {}
+  loadBalancerSourceRanges: []
+
+# Declare values for environment varibale "https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/"
+configvalues: {
+  TZ: "Asia/Calcutta"
+}
+
+# secrets works when configvalues is defined 
+secrets:
+  enabled: false
+  annotations: 
+    avp_path: "DevOps/test/secrets"
+    kv_version: "1"
+  values:
+
+# Attach arbitrary non-identifying metadata to objects "https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/"
+podAnnotations: {}
+
+# Enable ingress true and define hosname and annotations to manages external access to the services in a cluster "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  labels: {}
+  path: /
+  hosts:
+    - example.com
+  ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
+  extraPaths: []
+  # - path: /*
+  #   backend:
+  #     serviceName: ssl-redirect
+  #     servicePort: use-annotation
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+
+# Uncomment for Managing Resources for Containers "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
+
+#resources: 
+#  limits:
+#    cpu: 800m
+#    memory: 1000Mi
+#  requests:
+#    cpu: 800m
+#    memory: 1000Mi
+
+
+# Enable autoscaling "true" for Scales the number of Pods in a replication controller, deployment, replica set or stateful set based on observed CPU utilization (or, with custom metrics support "https://kubernetes.io/blog/2016/07/autoscaling-in-kubernetes/"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 90
+  targetMemoryUtilizationPercentage: 90
+
+# For scheduling  pods to particular nodes "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+
+nodeSelector: {}
+
+# Tolerations are applied to pods, and allow (but do not require) the pods to schedule onto nodes with matching taints "https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/"
+
+tolerations: {}
+
+# "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+
+affinity: {}
+
+# Number of concurrent disruptions that your application experiences, allowing for higher availability while permitting the cluster administrator to manage the clusters nodes "https://kubernetes.io/docs/tasks/run-application/configure-pdb/"  
+
+disruption:
+  minAvailable: 1
+
+# A service account provides an identity for processes that run in a Pod "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/"
+
+serviceAccount:
+  create: false
+  serviceAccountAnnotations: {
+     eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/test-app
+}
+
+# Enable cronjob for use a CronJob to run Jobs on a time-based schedule. These automated jobs run like Cron tasks on a Linux or UNIX system "https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/"
+
+cronjob:
+  enabled: false
+  crons:
+    "0":
+      name: test1
+      schedule: "0 * * * *"
+      successfulJobsHistoryLimit: 5
+      failedJobsHistoryLimit: 5
+      args: "python manage.py"
+    "1":
+      name: test2
+      schedule: "*/30 * * * *"
+      successfulJobsHistoryLimit: 5
+      failedJobsHistoryLimit: 5
+      args: "python manage.py runscript"
+
+rollout:
+  enabled: "false"
+  #strategy:
+    # blueGreen:
+    #   activeService: test-svc
+    #   previewService: test-svc-preview
+    #  canary:
+    #   steps:
+    #   - setWeight: 20
+    #   - pause: {}
+   
+    

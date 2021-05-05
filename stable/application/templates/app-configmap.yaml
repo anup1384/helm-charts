@@ -1,0 +1,12 @@
+{{- if .Values.configvalues }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "application.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "application.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  namespace: {{ .Values.namespace }}
+data:
+{{- toYaml .Values.configvalues | nindent 2 }}
+{{- end }}
