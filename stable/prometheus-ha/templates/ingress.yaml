@@ -1,0 +1,23 @@
+{{- if .Values.ingress.enabled -}}
+{{- range $job, $val := .Values.ingress.rules }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace }}
+  {{- with $.Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+  - host: {{ .host }}
+    http:
+      paths:
+      - path: {{ .path }}
+        backend:
+          serviceName: {{ .service_name }}
+          servicePort: {{ .service_port }}
+---
+{{- end }}
+{{- end }}

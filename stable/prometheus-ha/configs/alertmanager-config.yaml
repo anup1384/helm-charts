@@ -1,0 +1,38 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: "YOUR_SLACK_WEBHOOK_URL"
+  smtp_smarthost: SMTP_HOST
+  smtp_from: EMAIL
+  smtp_auth_username: USER_NAME
+  smtp_auth_password: PASSWORD
+  smtp_require_tls: true
+
+templates:
+- '/etc/alertmanager-templates/*.tmpl'
+route:
+  group_by: ['alertname', 'cluster', 'instance']
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 20m  
+  receiver: default 
+  routes:
+  - match:
+      team: devops
+    receiver: devops
+    continue: true 
+  # - match: 
+  #     team: dev
+  #   receiver: dev
+  #   continue: true
+
+receivers:
+- name: 'default'
+
+- name: 'devops'
+  slack_configs:
+  - channel: '#devops-alerts'
+    send_resolved: true
+    text: '{{ template "slack.appmonitor.text" . }}'
+  email_configs:
+  - to: alert@abc.com
+    send_resolved: true

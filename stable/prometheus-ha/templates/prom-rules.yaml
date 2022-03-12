@@ -1,0 +1,34 @@
+{{- if .Values.prometheus.enabled -}}
+{{- if .Values.prometheus.rules }}
+{{ $files := .Files }}
+{{- range $provider, $rules := .Values.prometheus.rules }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+{{- if $rules }}
+data:
+{{- $ruleFound := false }}
+{{- range $key, $value := $rules }}
+{{- if (or (hasKey $value "yaml") (hasKey $value "file")) }}
+{{- $ruleFound = true }}
+{{ print $key | indent 2 }}.yaml:
+{{- if hasKey $value "yaml" }}
+    |-
+{{ $value.yaml | indent 6 }}
+{{- end }}
+{{- if hasKey $value "file" }}
+{{ toYaml ( $files.Get $value.file ) | indent 4}}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $ruleFound }}
+  {}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+
+{{- end }}
+{{- end }}

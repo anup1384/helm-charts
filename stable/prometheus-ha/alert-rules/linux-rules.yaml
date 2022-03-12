@@ -1,0 +1,135 @@
+---
+groups:
+  - name: instancedown
+    rules:
+    - alert: EndpointDown
+      expr: up{job="staging-ec2-telegraf"} == 0
+      for: '120s'
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: 'Please check if telegraf/exporter is running on {{ $labels.instance }} and port 9273(telegraf),es(9108),aerospike(9145) is open for prometheus. Verify if metrics are being exposed on the server by doing curl http://127.0.0.1:$port/metrics'
+        description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 120 seconds. | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    - alert: linux_NODE_DISK_USAGE 90 %
+      expr: disk_used_percent{fstype=~"xfs|ext4|nfs4|cifs"} > 90
+      for: 5m
+      labels:
+        category: linux
+        severity: critical
+        team: devops
+      annotations:
+        summary: 'Node {{$labels.instance}} volume {{$labels.path}} is over 90% full. | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    # - alert: linux_NODE_DISK_USAGE 80 %
+    #   expr: disk_used_percent{fstype=~"xfs|ext4|nfs4|cifs"} > 80
+    #   for: 5m
+    #   labels:
+    #     category: linux
+    #     severity: critical
+    #     team: devops
+    #   annotations:
+    #     summary: 'Node {{$labels.instance}} volume {{$labels.path}} is over 80% full. | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+
+    - alert: linux_NODE_DISK_WILL_FILL_IN_TWO_HOURS
+      expr: predict_linear(disk_free{fstype=~"xfs|ext4|nfs4|cifs"}[1h], 2 * 3600) < 0
+      for: 10m
+      labels:
+        category: linux
+        severity: warning
+        team: devops
+      annotations:
+        summary: 'Disk is predicted to fill up in two hours : {{$labels.instance}} {{$labels.path}} | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    - alert: linux_DISK_I/O_QUEUED
+      expr: rate(diskio_weighted_io_time[5m]) / 1000 > 20
+      for: 5m
+      labels:
+        category: linux
+        severity: critical
+        team: devops
+      annotations:
+        summary: 'Disk I/O queue overloaded - requests have waited for more than 20 sec from 5m: {{$labels.instance}} Disk: {{$labels.name}} | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    - alert: linux_NODE_HIGH_CPU_OVER_2HRS
+      expr: (100 - avg_over_time (cpu_usage_idle{cpu="cpu-total"}[15m])) > 95
+      for: 2h
+      labels:
+        category: linux
+        severity: warning
+        team: devops
+      annotations:
+        summary: Instance {{$labels.instance}} has had high CPU usage for over 2h | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}
+
+    - alert: linux_NODE_HIGH_SWAP
+      expr: rate(swap_used_percent[5m]) > 98
+      for: 15m
+      labels:
+        category: linux
+        severity: warning
+        team: devops
+      annotations:
+        summary: Node {{$labels.instance}} has had high swap usage for over 15m | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}
+
+    - alert: linux_NODE_LOW_MEMORY_PROD
+      expr: avg_over_time(mem_available_percent[5m]) < 5
+      for: 2m
+      labels:
+        category: linux
+        severity: warning
+        team: devops
+      annotations:
+        summary: Node {{$labels.instance}} has had low memory over 5m - Value {{$value}} | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}
+
+    - alert: CPU_HIGH_LOAD_5MIN
+      # expr: system_load5{environment="prod", asgname!~'.+', dbtype!~'.+', service!~"marketplace-promo-hdp-cluster-storm-agent|marketplace-promoesclusv2mb|marketplace-promo-hdp-cluster-storm-server-mb|marketplace-ordmixdataes|marketplace-promo-pg-hdp-cluster-spark-server-mb|pdp-ingest-core|pdp-ingest-master|digital-cst-elasticsearch|marketplace-jaeger-cassandra", businessunit!="cdo",techteam !="um-devops" }/system_n_cpus > 0.9
+      expr: system_load5/system_n_cpus > 1.5
+      for: 5m
+      labels:
+        category: linux
+        severity: critical
+        team: devops
+      annotations:
+        threshold_value: 1.5
+        severity: critical
+        summary: Instance {{$labels.instance}} had high cpu load for over 5m - Value {{$value}} | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}
+
+    # - alert: linux_tcp_check_failed
+    #   expr: net_response_result_code != 0
+    #   for: 1m
+    #   labels:
+    #     category: linux
+    #     severity: warning
+    #     team: devops
+    #   annotations:
+    #     description: service on port has stopped working {{$labels.server}}:{{$labels.port}} monitored by instance {{$labels.instance}}.
+    #     summary: 'tcp check for server:port {{$labels.server}}:{{$labels.port}} into instance {{$labels.instance}} failed. | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    - alert: linux_cpu_steal_high
+      expr: avg_over_time(cpu_usage_steal[10m]) > 10
+      for: 30s
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: 'average cpu steal has been above 10 for {{ $labels.instance }} of {{ $labels.service }} for 10 minutes. Last Value {{$value}} | {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    - alert: linux_cpu_high
+      expr: avg_over_time(cpu_usage_steal[10m]) > 50
+      for: 30s
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        summary: 'average cpu steal has been above 50 for {{ $labels.instance }} of {{ $labels.service }} for 10 minutes. Last Value {{$value}} |  {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'
+
+    - alert: linux_disk_inodes_low
+      expr: disk_inodes_free{fstype!="fuse.s3fs"} < 14000
+      for: 1m
+      labels:
+        severity: warning
+        team: devops
+      annotations:
+        description: 'disk_inodes_free for {{ $labels.instance }} of {{ $labels.service }} is {{$value}} |  {{ $labels.component }} | {{ $labels.subcomponent }} | {{ $labels.role }}'

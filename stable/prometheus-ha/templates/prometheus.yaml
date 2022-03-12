@@ -1,0 +1,126 @@
+{{- if .Values.prometheus.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prometheus
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: {{ .Values.prometheus.clusterName }}
+  replicas: {{ .Values.prometheus.replicas }}
+  selector:
+    matchLabels:
+      app: prometheus
+      thanos-store-api: "true"
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        thanos-store-api: "true"
+    spec:
+      serviceAccountName: monitoring
+      containers:
+        - name: prometheus-server-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.5.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/prometheus-shared/
+            - --webhook-url=http://127.0.0.1:9090/-/reload
+          volumeMounts:
+            - name: prometheus-config-shared
+              mountPath: /etc/prometheus-shared/
+              readOnly: true
+            - name: prometheus-rules
+              mountPath: /etc/prometheus-shared/rules
+              readOnly: true
+        - name: prometheus
+          image: {{ .Values.prometheus.image }}
+          args:
+            - "--config.file=/etc/prometheus-shared/prometheus.yaml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.enable-lifecycle"  
+            - "--storage.tsdb.no-lockfile"
+            - "--storage.tsdb.min-block-duration=2h"
+            - "--storage.tsdb.max-block-duration=2h"
+            - "--storage.tsdb.retention.time={{ .Values.prometheus.retentiontime }}"
+          {{- range $key, $value := .Values.prometheus.extraArgs }}
+            - --{{ $key }}={{ $value }}
+          {{- end }}
+          ports:
+            - name: prometheus
+              containerPort: 9090
+          resources:
+            {{- toYaml .Values.prometheus.resources | nindent 12 }}
+          volumeMounts:
+            - name: prometheus-storage
+              mountPath: /prometheus/
+            - name: prometheus-config-shared
+              mountPath: /etc/prometheus-shared/
+            - name: prometheus-rules
+              mountPath: /etc/prometheus-shared/rules
+        - name: thanos
+          image: {{ .Values.thanos.image }}
+          args:
+            - sidecar
+            - --log.level=debug
+            - --tsdb.path=/prometheus
+            - --prometheus.url=http://127.0.0.1:9090
+            - "--objstore.config={type: S3, config: {bucket: '{{.Values.thanos.archive_bucket}}', endpoint: '{{.Values.thanos.endpoint}}', region: '{{.Values.thanos.region}}'}}"
+            - --reloader.config-file=/etc/prometheus/prometheus.yaml.tmpl
+            - --reloader.config-envsubst-file=/etc/prometheus-shared/prometheus.yaml
+            - --reloader.rule-dir=/etc/prometheus-shared/rules/
+          env:
+            - name: CLUSTER_NAME
+              value: {{ .Values.prometheus.clusterName }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: http-sidecar
+              containerPort: 10902
+            - name: grpc
+              containerPort: 10901
+          livenessProbe:
+            httpGet:
+              port: 10902
+              path: /-/healthy
+          readinessProbe:
+            httpGet:
+              port: 10902
+              path: /-/ready
+          resources:
+            {{- toYaml .Values.thanos.query.resources | nindent 12 }}
+          volumeMounts:
+            - name: prometheus-storage
+              mountPath: /prometheus
+            - name: prometheus-config-shared
+              mountPath: /etc/prometheus-shared/
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-rules
+              mountPath: /etc/prometheus-shared/rules
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 1000
+      volumes:
+        - name: prometheus-config
+          configMap:
+            defaultMode: 420
+            name: prometheus-server-conf
+        - name: prometheus-config-shared
+          emptyDir: {}
+        - name: prometheus-rules
+          configMap:
+            name: prometheus-rules
+  volumeClaimTemplates:
+  - metadata:
+      name: prometheus-storage
+      namespace: {{ .Values.namespace }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.storageClass.name }}
+      resources:
+        requests:
+          storage: {{ .Values.prometheus.storage }}
+{{- end }}

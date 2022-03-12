@@ -1,0 +1,9 @@
+{{ define "slack.appmonitor.text" }}
+{{ range .Alerts }}
+*Labels*: {{ range .Labels.SortedPairs }} - {{ .Name }} = `{{ .Value }}`
+{{end}} 
+*Annotations*:
+{{ range .Annotations.SortedPairs }} - {{ .Name }} = `{{ .Value }}`
+{{ end }}
+*Source* <{{ .GeneratorURL }}|:chart_with_upwards_trend:>
+{{ end }}{{ end }}
