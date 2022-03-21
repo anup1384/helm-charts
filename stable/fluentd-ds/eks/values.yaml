@@ -1,0 +1,108 @@
+image:
+  repository: "fluent/fluentd-kubernetes-daemonset"
+  pullPolicy: "IfNotPresent"
+  tag: "v1.14-debian-elasticsearch7-1"
+
+
+resources: 
+  requests:
+    cpu: "1"
+    memory: 1G
+  limits:
+    memory: 2G
+    cpu: "2"
+
+fileConfigs:
+  01_sources.conf: |-
+      <source>
+        @type tail
+        @id in_tail_container_logs
+        path /var/log/containers/*.log
+        exclude_path ["/var/log/containers/*istio*.log"]
+        pos_file /var/log/fluentd-containers.log.pos
+        tag k8s.*
+        read_from_head true
+        <parse>
+          @type json
+          time_key @timestamp
+          time_format %Y-%m-%dT%H:%M:%S.%N%z
+          keep_time_key true
+        </parse>
+      </source>     
+    
+      <filter k8s.**>
+        @type kubernetes_metadata
+        skip_container_metadata "true"
+      </filter>
+    
+        #log message is split when using fluentd logging driver(https://github.com/moby/moby/issues/34620)
+        <filter k8s.**> 
+        @id filter_concat
+        @type concat
+        key log
+        use_first_timestamp true
+        multiline_end_regexp /\n$/
+        separator ""
+      </filter>
+    
+      #Parsing logs into json fields and remove key name
+      <filter k8s.**>
+        @type parser
+        @log_level info
+        key_name log
+        reserve_data true
+        reserve_time true
+        remove_key_name_field true
+        emit_invalid_record_to_error false
+        replace_invalid_sequence true 
+        <parse>
+          @type json
+        </parse>
+      </filter>
+    
+      #Transforming logs and remove unwanted fields
+      <filter k8s.**>
+        @type record_transformer
+        enable_ruby true
+        <record>
+          log_json ${record["log"]}
+        </record>
+        remove_keys $.kubernetes.labels.rollouts-pod-template-hash,$.kubernetes.pod_id,$.kubernetes.container_image
+      </filter>
+      
+  02_es_config.conf: |-
+      <match k8s.**>
+        @type elasticsearch
+        @id k8s
+        @log_level debug
+        scheme http
+        host  "es-logging.abc.com" #Elasticsearch host URL
+        port  "80"                 #Elasticsearch host PORT
+        log_es_400_reason true  
+        logstash_format true
+        logstash_prefix ${$.kubernetes.labels.app} #custom index based on k8s metadata labels
+        reconnect_on_error true
+        reload_on_failure true
+        reload_connections false
+        suppress_type_name true
+        request_timeout 2147483648
+        compression_level best_compression
+        include_timestamp true
+        utc_index false
+        time_key_format "%Y-%m-%dT%H:%M:%S.%N%z"
+        time_key time
+        <buffer tag, $.kubernetes.labels.app>
+          @type file
+          flush_mode interval
+          flush_thread_count 16
+          path /var/log/fluentd-buffers/k8scommon.buffer
+          total_limit_size 8GB
+          chunk_limit_size 150MB
+          flush_interval 5s
+          overflow_action drop_oldest_chunk
+          retry_max_interval 30s
+          retry_forever true
+          retry_type exponential_backoff
+          retry_timeout 1h
+        </buffer>
+      </match>

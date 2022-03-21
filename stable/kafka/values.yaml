@@ -944,7 +944,7 @@ ingress:
   labels: {}
   path: /
   hosts:
-    - motor-kafka.paytminsurance.co.in
+    - motor-kafka.abc.com
   ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
   extraPaths: []
   # - path: /*
