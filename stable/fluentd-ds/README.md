@@ -4,6 +4,4 @@
 
 ## Installation
 
-To add the `fluent` helm repo, run:
-
 https://anupdubey.medium.com/kubernetes-application-logging-using-fluentd-2794c0ce9d24
