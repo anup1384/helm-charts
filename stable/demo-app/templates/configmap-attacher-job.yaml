@@ -1,0 +1,65 @@
+{{- $configmapList := printf "%s" (include "configmapList" .) -}}
+{{- $timeNow := (now | date "20060102150405") }}
+{{- $appname := printf "%s" (include "demo-app.fullname" .) -}}
+{{- $kubeTargetVersion := default .Capabilities.KubeVersion.GitVersion .Values.kubeTargetVersionOverride }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  namespace: kube-system
+  {{- if (semverCompare "<=1.21.0-0" $kubeTargetVersion) }}
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    strategy.spinnaker.io/recreate: 'true'
+  {{- end }}
+  labels:
+    app: "{{ $appname }}"
+    configmap-attacher-job: "true"
+  {{- if (semverCompare "<=1.21.0-0" $kubeTargetVersion) }}
+  name: configmap-attacher-job-{{ $appname }}
+  {{- else }}
+  name: configmap-attacher-job-{{ $appname }}-{{ $timeNow }}
+  {{- end }}
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: "{{ $appname }}"
+      annotations:
+      labels:
+        app: "{{ $appname }}"
+    spec:
+      containers:
+      - name: {{ $appname }}-configmap-attacher-job
+        args: ["-rollout", "{{ $appname }}", "-namespace", "{{ .Release.Namespace }}", "-configmaps", "{{ $configmapList }}"]
+        image: {{ .Values.configmapAttacher.repository }}:{{ .Values.configmapAttacher.tag }}
+        resources:
+          requests: {{ toYaml .Values.configmapAttacher.resources.requests | nindent 12 }}
+          limits: {{ toYaml .Values.configmapAttacher.resources.limits | nindent 12 }}
+        env:
+          - name: VERSION
+            value: "{{ .Values.configmapAttacher.tag | toString }}"
+          - name: LOG_LEVEL
+            value: "debug"
+          - name: JOB_NAME
+            {{- if (semverCompare "<=1.21.0-0" $kubeTargetVersion) }}
+            value: "configmap-attacher-job-{{ $appname }}"
+            {{- else }}
+            value: "configmap-attacher-job-{{ $appname }}-{{ $timeNow }}"
+            {{- end }}
+      restartPolicy: OnFailure
+      serviceAccountName: configmap-attacher-job
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if and (semverCompare ">=1.21.0-0" $kubeTargetVersion) (semverCompare "<9.9.9-9" $kubeTargetVersion) }}
+      ttlSecondsAfterFinished: 100
+      {{- end }}

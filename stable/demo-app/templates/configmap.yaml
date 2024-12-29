@@ -1,0 +1,20 @@
+{{- $root := . -}}
+{{- $appname := printf "%s" (include "demo-app.fullname" .) -}}
+apiVersion: v1
+kind: List
+metadata:
+  name: "configmap-list"
+items:
+{{- range $key, $value := .Values.configmaps }}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "{{ $appname }}-{{ $key }}-{{ $value | toString | adler32sum }}"
+    namespace: {{ $root.Release.Namespace }}
+    labels:
+      app: "{{ $appname }}"
+  data:
+  {{- range $key, $value := $value.configs_resources }}
+    {{ $key }}: "{{ $value }}"
+  {{- end }}
+{{- end }}

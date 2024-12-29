@@ -1,0 +1,114 @@
+{{- $appname := printf "%s" (include "demo-app.fullname" .) -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "demo-app.fullname" . }}
+  labels:
+    {{- include "demo-app.labels" . | nindent 4 }}
+    app: demo-app
+    version: v1
+spec:
+  strategy:
+      canary:
+        maxUnavailable: "50%"
+        maxSurge: "100%"
+        steps:
+        - setCanaryScale:
+           replicas: 1
+        - setWeight: 1
+        - pause: {}
+        - setCanaryScale:
+           weight: 50
+        - setWeight: 1
+        - pause: {}
+        - setCanaryScale:
+           weight: 100
+        - setWeight: 1
+        - pause: {}
+        - setWeight: 5
+        - pause: {}
+        - setWeight: 25
+        - pause: {}
+        - setWeight: 50
+        - pause: {}
+        - setWeight: 75
+        - pause: {}
+        - setWeight: 100
+        - pause:
+            duration: 120
+        - pause: {}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "demo-app.selectorLabels" . | nindent 6 }}
+      app: demo-app
+      version: v1
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "demo-app.selectorLabels" . | nindent 8 }}
+        app: demo-app
+        version: v1
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "demo-app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            initialDelaySeconds: 30
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          envFrom:
+          {{- range $key, $value := .Values.configmaps }}
+          - configMapRef:
+                name: {{ $appname }}-{{ $key }}-{{ $value | toString | adler32sum }}
+          {{- end }}
+          command: {{ .Values.command }}   
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
